@@ -97,3 +97,178 @@ This specifically means a world where:
 - Avatars create value as user proxies across multiple platforms and services
 
 In this world, a new paradigm is realized where the value generated from personal data is directly returned to individuals while protecting their privacy. Users can access more revenue opportunities by developing their avatars and enhancing their capabilities.
+
+# MirrorMe MVP Development Requirements
+
+## 1. Development Goal
+
+Implement the basic functions of MirrorMe's core concept "Creation → Growth → Autonomy" cycle, enabling users to create and nurture digital avatars and experience basic monetization mechanisms through a Mini App.
+
+## 2. Core Functionality Requirements
+
+### 2.1 User Authentication & Avatar Creation
+- **World ID Integration**
+ - User authentication using MiniKit's Verify command
+ - Mechanism to ensure one avatar per person
+- **Basic Profile Creation**
+ - Name, icon selection
+ - Multiple-choice form for basic information (gender, location, areas of interest, occupation, etc.) with approximately 5 questions
+- **Visual Avatar Representation**
+ - Simple avatar display reflecting growth state
+
+### 2.2 Avatar Development Functions
+- **Information Input Interface**
+ - Simple questions to enhance avatar data through user responses
+ - Mechanism for avatar growth with each response
+- **Growth Level Display**
+ - Visualization of growth levels based on provided information (levels or status)
+ - Display of daily claimable token amount boosts based on growth level
+
+### 2.3 Monetization Functions
+- **Ad Viewing Mechanism**
+ - Users view actual ad content (embedded YouTube videos)
+ - Token earning mechanism based on completed views
+ - Token amount increases with avatar growth level
+- **Token Acquisition & Claim Mechanism**
+ - Display of daily claimable tokens
+ - Virtual token transfer using MiniKit's Pay command
+
+## 3. Technical Requirements
+
+### 3.1 Frontend
+- **React/TypeScript Implementation**
+ - Mobile-first UI design
+ - World App UI kit utilization
+- **State Management**
+ - User profile and avatar data management
+ - Revenue and token information management
+- **Interactive UI**
+ - Visual feedback for avatar development
+ - Animations for revenue acquisition
+- **Ad Display Component**
+ - YouTube video embedding
+ - View completion confirmation mechanism
+
+### 3.2 Backend
+- **Data Management**
+ - User information and avatar data storage
+ - Token issuance and management logic
+- **Ad Management**
+ - Test ad content management (YouTube video links)
+ - View history and reward calculation
+- **World App Integration**
+ - MiniKit SDK integration
+ - Verify and Pay function implementation
+
+### 3.3 World App MiniKit Function Implementation
+- **Verify Command**
+ - User authentication and session management
+- **Pay Command**
+ - Token reward transfer processing
+
+## 4. Data Model
+
+### 4.1 User Profile
+- User ID (World ID integration)
+- Basic information (name, selected icon, etc.)
+- Selected preference information
+
+### 4.2 Avatar Data
+- Growth level
+- Attribute information and skill values
+- Monetization ability parameters
+
+### 4.3 Revenue Data
+- Cumulative tokens earned
+- Daily claimable tokens
+- Claim history
+
+### 4.4 Ad Data
+- Viewed ad list
+- Ad category information
+
+## 5. User Flow
+
+1. **App Launch & Authentication**
+  - Open in World App
+  - World ID authentication
+  
+2. **Initial Setup**
+  - Avatar creation (first-time only)
+  - Basic information input
+  
+3. **Main Screen**
+  - Avatar status display
+  - Daily token display
+  - Action selection UI
+  
+4. **Development Action**
+  - Additional information input
+  - Avatar growth animation
+  
+5. **Monetization Action**
+  - YouTube video viewing
+  - Token claiming
+
+### Workflow Diagram
+┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+│                 │      │                 │      │                 │
+│World App Launch ├─────►│ World ID Auth   ├─────►│First-time User  │
+│                 │      │                 │      │   Detection     │
+└─────────────────┘      └─────────────────┘      └────────┬────────┘
+│
+│
+▼
+┌─────────────────┐                             ┌─────────────────┐
+│                 │                             │                 │
+│   Main Screen   │◄────────────────────────────┤Initial Avatar   │
+│                 │                             │Setup (First time)│
+└────────┬────────┘                             └─────────────────┘
+│
+│
+▼
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│                       User Action Selection                     │
+│                                                                 │
+└─┬───────────────────────────┬────────────────────────────────┬──┘
+│                           │                                │
+│                           │                                │
+▼                           ▼                                ▼
+┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+│                 │      │                 │      │                 │
+│  Token Claim    │      │Development Action│      │   Ad Viewing    │
+│                 │      │                 │      │                 │
+└────────┬────────┘      └────────┬────────┘      └────────┬────────┘
+│                        │                        │
+│                        │                        │
+▼                        ▼                        ▼
+┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+│                 │      │                 │      │                 │
+│ Pay Processing  │      │Additional Info  │      │ View Completion │
+│                 │      │     Input       │      │                 │
+└────────┬────────┘      └────────┬────────┘      └────────┬────────┘
+│                        │                        │
+│                        │                        │
+▼                        ▼                        ▼
+┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+│                 │      │                 │      │                 │
+│Acquisition      │      │ Avatar Growth   │      │Reward Calculation│
+│Complete Display │      │    Update       │      │                 │
+└────────┬────────┘      └────────┬────────┘      └────────┬────────┘
+│                        │                        │
+└────────────────────────┴────────────────────────┘
+│
+▼
+┌─────────────────┐
+│                 │
+│  Return to      │
+│  Main Screen    │
+│                 │
+└─────────────────┘
+## 6. MVP Limitations
+
+- Actual ads are substituted with embedded YouTube videos
+- Avatar collaboration features planned only as future extensions
+- Complex AI learning functions substituted with simple simulations
+- Multi-platform deployment not supported in initial stage
