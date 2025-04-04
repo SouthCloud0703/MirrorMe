@@ -211,6 +211,7 @@ Implement the basic functions of MirrorMe's core concept "Creation â†’ Growth â†
   - Token claiming
 
 ### Workflow Diagram
+```mermaid
 flowchart TD
     A[World App Launch] --> B[World ID Auth]
     B --> C[First-time User Detection]
@@ -226,6 +227,8 @@ flowchart TD
     H3 --> I3[Reward Calculation]
     I1 & I2 & I3 --> J[Complete Display]
     J --> K[Return to Main Screen]
+```
+
 ## 6. MVP Limitations
 
 - Actual ads are substituted with embedded YouTube videos
