@@ -235,3 +235,29 @@ flowchart TD
 - Avatar collaboration features planned only as future extensions
 - Complex AI learning functions substituted with simple simulations
 - Multi-platform deployment not supported in initial stage
+
+## 7. Starting the Development Server
+
+To start the frontend and backend development servers, use the following commands:
+
+### Starting the Frontend
+
+```bash
+cd frontend && npm run dev
+```
+
+### Starting the Backend
+
+```bash
+cd backend && npm run dev
+```
+
+### Setting up the Tunnel
+
+To enable external access to the development environment, set up a tunnel using the following command:
+
+```bash
+tunnelmole 5173
+```
+
+This will launch the development environment.

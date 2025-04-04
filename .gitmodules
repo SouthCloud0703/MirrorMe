@@ -1,0 +1,3 @@
+[submodule "WorldMiniApp_MCP"]
+	path = WorldMiniApp_MCP
+	url = https://github.com/0xZap/WorldMiniApp_MCP.git
