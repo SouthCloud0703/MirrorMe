@@ -123,72 +123,82 @@ const WelcomePage: React.FC<WelcomePageProps> = ({ onAuth }) => {
       {/* App description */}
       <div className="px-6 mb-8 max-w-md">
         <p className="text-center text-slate-600 mb-6">
-          Let your digital self work for you
+          Let your digital twin work for you
         </p>
 
         {/* Image-based feature highlights */}
-        <div className="grid grid-cols-1 gap-8 mb-10">
-          {/* Feature 1: Claim */}
-          <div className="feature-card rounded-xl overflow-hidden shadow-lg">
-            <div className="relative">
-              <img 
-                src="/images/claim.png" 
-                alt="Daily Claims" 
-                className="w-full h-48 object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = "https://via.placeholder.com/400x200?text=Daily+Claims";
-                }} 
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
-                <div className="text-white w-full">
-                  <h3 className="font-bold text-xl">Daily Claims</h3>
-                  <p className="text-sm opacity-90 mb-3">Incentivize daily regular logins</p>
+        <div className="relative w-full mb-10 overflow-hidden">
+          {/* Slider container */}
+          <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-6">
+            {/* Feature 1: Claim */}
+            <div className="feature-card rounded-xl overflow-hidden shadow-lg flex-shrink-0 w-80 mx-2 snap-center">
+              <div className="relative">
+                <img 
+                  src="/images/claim.png" 
+                  alt="Daily Claims" 
+                  className="w-full h-48 object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = "https://via.placeholder.com/400x200?text=Daily+Claims";
+                  }} 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
+                  <div className="text-white w-full">
+                    <h3 className="font-bold text-xl">Daily Claims</h3>
+                    <p className="text-sm opacity-90 mb-3">Incentivize daily regular logins</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Feature 2: Training */}
+            <div className="feature-card rounded-xl overflow-hidden shadow-lg flex-shrink-0 w-80 mx-2 snap-center">
+              <div className="relative">
+                <img 
+                  src="/images/train.png" 
+                  alt="Training" 
+                  className="w-full h-48 object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = "https://via.placeholder.com/400x200?text=Training";
+                  }} 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
+                  <div className="text-white">
+                    <h3 className="font-bold text-xl">Training</h3>
+                    <p className="text-sm opacity-90">Share information to increase claim efficiency</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Feature 3: Work autonomously */}
+            <div className="feature-card rounded-xl overflow-hidden shadow-lg flex-shrink-0 w-80 mx-2 snap-center">
+              <div className="relative">
+                <img 
+                  src="/images/work.png" 
+                  alt="Autonomous Work" 
+                  className="w-full h-48 object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = "https://via.placeholder.com/400x200?text=Autonomous+Work";
+                  }} 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
+                  <div className="text-white">
+                    <h3 className="font-bold text-xl">Work Autonomously</h3>
+                    <p className="text-sm opacity-90">Your digital avatar earns rewards automatically</p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-          
-          {/* Feature 2: Training */}
-          <div className="feature-card rounded-xl overflow-hidden shadow-lg">
-            <div className="relative">
-              <img 
-                src="/images/train.png" 
-                alt="Training" 
-                className="w-full h-48 object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = "https://via.placeholder.com/400x200?text=Training";
-                }} 
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
-                <div className="text-white">
-                  <h3 className="font-bold text-xl">Training</h3>
-                  <p className="text-sm opacity-90">Share information to increase claim efficiency</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Feature 3: Work autonomously */}
-          <div className="feature-card rounded-xl overflow-hidden shadow-lg">
-            <div className="relative">
-              <img 
-                src="/images/work.png" 
-                alt="Autonomous Work" 
-                className="w-full h-48 object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = "https://via.placeholder.com/400x200?text=Autonomous+Work";
-                }} 
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
-                <div className="text-white">
-                  <h3 className="font-bold text-xl">Work Autonomously</h3>
-                  <p className="text-sm opacity-90">Your digital avatar earns rewards automatically</p>
-                </div>
-              </div>
-            </div>
+
+          {/* Scroll indicator dots */}
+          <div className="flex justify-center mt-4">
+            <div className="w-2 h-2 rounded-full bg-black mx-1"></div>
+            <div className="w-2 h-2 rounded-full bg-gray-300 mx-1"></div>
+            <div className="w-2 h-2 rounded-full bg-gray-300 mx-1"></div>
           </div>
         </div>
       </div>

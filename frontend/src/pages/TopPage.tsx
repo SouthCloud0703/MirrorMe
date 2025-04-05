@@ -296,9 +296,6 @@ const TopPage: React.FC<TopPageProps> = ({ userId, onAuth }) => {
   // totalXPForLevelは未使用のため削除
   const [trainSection, setTrainSection] = useState("Tasks"); // "Tasks" or "Connections"
   const [expandedTask, setExpandedTask] = useState<string | null>(null);
-  // MIR獲得アニメーション用のステート
-  const [showMirGainedAnimation, setShowMirGainedAnimation] = useState(false);
-  const [mirGained, setMirGained] = useState(0);
   // 削除成功のメッセージ表示用
   const [showClearSuccess, setShowClearSuccess] = useState(false);
   // 広告視聴完了ポップアップ用のステート
@@ -327,17 +324,17 @@ const TopPage: React.FC<TopPageProps> = ({ userId, onAuth }) => {
     }
   }, [walletConnected, walletAddress]);
   
-  // トランザクション成功後に残高を更新
-  useEffect(() => {
-    if (transactionHash && walletAddress) {
-      // トランザクション成功後、少し待ってから残高を更新
-      const timeoutId = setTimeout(() => {
-        fetchMirBalance(walletAddress);
-      }, 3000);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [transactionHash]);
+  // トランザクション成功後に残高を更新するuseEffectをコメントアウト
+  // useEffect(() => {
+  //   if (transactionHash && walletAddress) {
+  //     // トランザクション成功後、少し待ってから残高を更新
+  //     const timeoutId = setTimeout(() => {
+  //       fetchMirBalance(walletAddress);
+  //     }, 3000);
+  //     
+  //     return () => clearTimeout(timeoutId);
+  //   }
+  // }, [transactionHash]);
 
   // ウォレット接続のシンプルな実装
   const connectWallet = async () => {
@@ -464,21 +461,16 @@ const TopPage: React.FC<TopPageProps> = ({ userId, onAuth }) => {
       const calculatedBoost = (avatarLevel / 2 + 1);
       const boostedAmount = Math.floor(baseClaimAmount * calculatedBoost);
       
-      setMirGained(boostedAmount);
-      setShowMirGainedAnimation(true);
+      // 残高が更新されるまでポーリングを開始
+      fetchMirBalanceWithRetry(walletAddress || '', boostedAmount);
       
-      // MIR残高を更新
+      // MIR残高を更新（ユーザー体験向上のため、バックグラウンドでの残高更新を待たずに表示を先に更新）
       setUserMirBalance(prev => {
-        const currentBalance = parseInt(prev) || 0;
-        return (currentBalance + boostedAmount).toString();
+        const currentBalance = parseFloat(prev) || 0;
+        return (currentBalance + boostedAmount).toFixed(2);
       });
       
       console.log(`Claimed ${boostedAmount} MIR tokens (development mode)`);
-      
-      // 3秒後にアニメーションを非表示
-      setTimeout(() => {
-        setShowMirGainedAnimation(false);
-      }, 3000);
       
       // クールダウン設定（24時間）
       const cooldownPeriod = 86400000; // 24時間（ミリ秒）
@@ -868,20 +860,55 @@ const TopPage: React.FC<TopPageProps> = ({ userId, onAuth }) => {
     }
   };
   
+  // 残高が更新されるまでポーリングを行う関数を追加
+  const fetchMirBalanceWithRetry = async (address: string, expectedIncrease: number, maxRetries = 10) => {
+    // 現在の残高を数値として保存
+    const initialBalance = parseFloat(userMirBalance);
+    let retryCount = 0;
+    
+    // ポーリング処理を行う関数
+    const checkBalance = async () => {
+      if (retryCount >= maxRetries) {
+        console.log("残高更新の最大試行回数に達しました");
+        return;
+      }
+      
+      retryCount++;
+      await fetchMirBalance(address);
+      
+      // 現在の残高を取得して数値比較
+      const currentBalance = parseFloat(userMirBalance);
+      
+      // 期待する増加があったかどうかを確認
+      if (currentBalance >= initialBalance + expectedIncrease) {
+        console.log("残高が正常に更新されました:", currentBalance);
+        return;
+      } else {
+        // まだ増加していない場合は再試行
+        console.log(`残高更新を待機中... 試行回数: ${retryCount}/${maxRetries}`);
+        setTimeout(checkBalance, 1000); // 1秒ごとに再試行（より頻繁に確認するため変更）
+      }
+    };
+    
+    // 初回実行
+    await checkBalance();
+  };
+  
   // 定期的に残高を更新
   useEffect(() => {
     if (walletConnected && walletAddress) {
       // 初回の残高取得
       fetchMirBalance(walletAddress);
       
-      // 30秒ごとに自動更新（バックグラウンドで残高を更新）
-      const intervalId = setInterval(() => {
-        if (walletConnected && walletAddress) {
-          fetchMirBalance(walletAddress);
-        }
-      }, 30000); // 30秒間隔
-      
-      return () => clearInterval(intervalId);
+      // 残高の自動更新は不要なため、コメントアウト
+      // // 30秒ごとに自動更新（バックグラウンドで残高を更新）
+      // const intervalId = setInterval(() => {
+      //   if (walletConnected && walletAddress) {
+      //     fetchMirBalance(walletAddress);
+      //   }
+      // }, 30000); // 30秒間隔
+      // 
+      // return () => clearInterval(intervalId);
     }
   }, [walletConnected, walletAddress]);
 
@@ -1038,17 +1065,11 @@ const TopPage: React.FC<TopPageProps> = ({ userId, onAuth }) => {
             </div>
             <span className="font-bold">
               {isUpdatingBalance ? (
-                <span className="flex items-center gap-1">
-                  <LoaderIcon className="h-4 w-4 text-gray-500 animate-spin" />
-                  <span className="text-gray-500">Loading...</span>
-                </span>
+                <span className="font-bold text-lg">{userMirBalance}</span>
               ) : (
                 <span className="font-bold text-lg">{userMirBalance}</span>
               )}
             </span>
-            {showMirGainedAnimation && (
-              <span className="text-green-500 font-bold text-sm animate-bounce">+{mirGained}</span>
-            )}
             <button 
               onClick={() => fetchMirBalance(walletAddress || '')}
               className="text-gray-500 hover:text-gray-700"
@@ -1230,10 +1251,13 @@ const TopPage: React.FC<TopPageProps> = ({ userId, onAuth }) => {
                 </div>
 
                 <button 
-                  className="w-full bg-slate-900 text-white py-3 rounded-lg flex items-center justify-center gap-2 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-white text-slate-900 py-3 rounded-lg flex items-center justify-center gap-2 font-bold border border-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={!walletConnected}
                 >
-                  <i className="hgi-stroke hgi-exchange-2 text-white"></i>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-slate-900">
+                    <path d="M7.5 21L3 16.5M3 16.5L7.5 12M3 16.5H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M16.5 3L21 7.5M21 7.5L16.5 12M21 7.5H7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
                   Exchange
                 </button>
               </div>
