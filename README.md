@@ -15,9 +15,7 @@ MirrorMe is a platform that leverages World ID's Proof of Personhood to create a
 
 This three-step cycle allows users to obtain increasing value with minimal effort.
 
-### 2.2 Narrative - Why Now?
-
-### 2.3 Features
+### 2.2 Features
 
 #### Technical Features
 - **Balancing Identity Verification and Anonymity**
