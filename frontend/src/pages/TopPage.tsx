@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 
 // World App MiniKit用の型定義拡張
 declare global {
@@ -43,7 +43,20 @@ const CheckCircleIcon = ({ className }: IconProps) => (
   </svg>
 );
 
+// CheckIconコンポーネントを追加
+const CheckIcon = ({ className }: IconProps) => (
+  <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
 
+// XIconコンポーネントを追加
+const XIcon = ({ className }: IconProps) => (
+  <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
 
 const AlertCircleIcon = ({ className }: IconProps) => (
   <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -95,10 +108,23 @@ const TrashIcon = ({ className }: IconProps) => (
 interface TopPageProps {
   userId: string | null;
   onAuth: (userId: string) => void;
+  onNavigate?: (page: 'welcome' | 'top' | 'activity') => void;
+}
+
+// ActivityタブのUI構造を更新するためのTypeScript型定義
+interface AgentActivity {
+  id: string;
+  title: string;
+  category: string;
+  timestamp: Date;
+  status: 'in-progress' | 'completed' | 'interrupted';
+  description: string;
+  reward: number;
+  icon: 'clock' | 'alert' | 'check';
 }
 
 // コンポーネントの宣言を修正し、明示的にPropsインターフェイスを指定
-const TopPage: React.FC<TopPageProps> = ({ userId, onAuth }) => {
+const TopPage: React.FC<TopPageProps> = ({ userId, onAuth, onNavigate }) => {
   // 実際にpropsを使用する
   // authenticated変数は使用されていないため削除
   // const [authenticated, setAuthenticated] = useState<boolean>(!!userId);
@@ -300,6 +326,613 @@ const TopPage: React.FC<TopPageProps> = ({ userId, onAuth }) => {
   const [showClearSuccess, setShowClearSuccess] = useState(false);
   // 広告視聴完了ポップアップ用のステート
   const [showAdCompletedPopup, setShowAdCompletedPopup] = useState(false);
+  
+  // タスクストリーム関連の状態
+  const [streamTasks, setStreamTasks] = useState<{
+    id: string;
+    title: string;
+    description: string;
+    category: string;
+    reward: number;
+    status: 'streaming' | 'matching' | 'matched' | 'rejected' | 'todo' | 'completed';
+    matchProgress?: number;
+    tags: string[];
+    createdAt: Date;
+  }[]>([]);
+
+  // 現在処理中のタスクの状態
+  const [currentTask, setCurrentTask] = useState<{
+    id: string;
+    title: string;
+    description: string;
+    category: string;
+    reward: number;
+    status: 'waiting' | 'matching' | 'matched' | 'rejected';
+    matchProgress?: number;
+    tags: string[];
+  } | null>(null);
+
+  // タスク処理中かどうかのフラグ
+  const [isProcessingTask, setIsProcessingTask] = useState(false);
+
+  // 処理待ちのタスクキュー
+  const [taskQueue, setTaskQueue] = useState<{
+    id: string;
+    title: string;
+    description: string;
+    category: string;
+    reward: number;
+    tags: string[];
+  }[]>([]);
+  
+  // 過去のエージェント活動ログ
+  const [agentActivities, setAgentActivities] = useState<AgentActivity[]>([
+    {
+      id: 'act-1',
+      title: 'Media Consumption',
+      category: 'Survey',
+      timestamp: new Date(),
+      status: 'in-progress',
+      description: 'Analyzing media consumption patterns...',
+      reward: 20,
+      icon: 'clock'
+    },
+    {
+      id: 'act-2',
+      title: 'Browser History',
+      category: 'Data',
+      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2日前
+      status: 'interrupted',
+      description: 'Unable to access browser history data',
+      reward: 25,
+      icon: 'alert'
+    },
+    {
+      id: 'act-3',
+      title: 'Shopping Preferences',
+      category: 'Survey',
+      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2時間前
+      status: 'completed',
+      description: 'Provided data on shopping habits and preferences',
+      reward: 15,
+      icon: 'check'
+    },
+    {
+      id: 'act-4',
+      title: 'Location Data',
+      category: 'Data',
+      timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5時間前
+      status: 'completed',
+      description: 'Shared anonymized location data',
+      reward: 10,
+      icon: 'check'
+    },
+    {
+      id: 'act-5',
+      title: 'App Usage Statistics',
+      category: 'Analysis',
+      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1日前
+      status: 'completed',
+      description: 'Analyzed app usage patterns and preferences',
+      reward: 12,
+      icon: 'check'
+    }
+  ]);
+  
+  // プリセットダミータスクデータ（50種類）
+  const dummyTasks = [
+    {
+      title: "User Preference Analysis",
+      description: "Analyze user preferences based on browsing history and interaction patterns.",
+      category: "Data Analysis",
+      tags: ["AI", "User Data", "Preferences"]
+    },
+    {
+      title: "Shopping Pattern Recognition",
+      description: "Identify shopping patterns and preferences to optimize recommendations.",
+      category: "Data Analysis",
+      tags: ["E-commerce", "Shopping", "Patterns"]
+    },
+    {
+      title: "Media Consumption Survey",
+      description: "Collect and analyze data about media consumption habits.",
+      category: "Survey",
+      tags: ["Media", "Content", "Habits"]
+    },
+    {
+      title: "Location Data Collection",
+      description: "Gather anonymized location data to improve location-based services.",
+      category: "Data Collection",
+      tags: ["Location", "GPS", "Privacy"]
+    },
+    {
+      title: "Social Media Usage Analysis",
+      description: "Analyze social media usage patterns to understand engagement trends.",
+      category: "Data Analysis",
+      tags: ["Social Media", "Engagement", "Trends"]
+    },
+    {
+      title: "Content Engagement Metrics",
+      description: "Track and analyze user engagement with various content types.",
+      category: "Content Evaluation",
+      tags: ["Content", "Engagement", "Metrics"]
+    },
+    {
+      title: "App Usage Statistics",
+      description: "Collect statistics on app usage to improve user experience.",
+      category: "Data Analysis",
+      tags: ["App", "Usage", "Statistics"]
+    },
+    {
+      title: "Digital Footprint Analysis",
+      description: "Analyze digital footprints to understand online behavior patterns.",
+      category: "Data Analysis",
+      tags: ["Digital", "Behavior", "Privacy"]
+    },
+    {
+      title: "Browser History Insights",
+      description: "Gain insights from browser history to improve browsing experience.",
+      category: "Data Analysis",
+      tags: ["Browser", "History", "Privacy"]
+    },
+    {
+      title: "Behavioral Pattern Recognition",
+      description: "Identify behavioral patterns to enhance personalized experiences.",
+      category: "Data Analysis",
+      tags: ["Behavior", "Patterns", "Personalization"]
+    },
+    {
+      title: "Email Communication Analysis",
+      description: "Analyze email communication patterns to optimize productivity.",
+      category: "Data Analysis",
+      tags: ["Email", "Communication", "Productivity"]
+    },
+    {
+      title: "Exercise Routine Tracking",
+      description: "Track and analyze exercise routines to provide personalized fitness recommendations.",
+      category: "Lifestyle Activity",
+      tags: ["Fitness", "Exercise", "Health"]
+    },
+    {
+      title: "Sleep Pattern Analysis",
+      description: "Monitor and analyze sleep patterns to improve overall sleep quality.",
+      category: "Lifestyle Activity",
+      tags: ["Sleep", "Health", "Wellness"]
+    },
+    {
+      title: "Dietary Preferences Survey",
+      description: "Collect information about dietary preferences to provide personalized nutrition advice.",
+      category: "Survey",
+      tags: ["Diet", "Nutrition", "Health"]
+    },
+    {
+      title: "Reading Habits Analysis",
+      description: "Analyze reading habits to recommend relevant content and improve reading experience.",
+      category: "Content Evaluation",
+      tags: ["Reading", "Books", "Content"]
+    },
+    {
+      title: "Music Listening Patterns",
+      description: "Track music listening patterns to enhance music recommendations.",
+      category: "Media Consumption",
+      tags: ["Music", "Entertainment", "Preferences"]
+    },
+    {
+      title: "Video Viewing Behavior",
+      description: "Analyze video viewing behavior to optimize content recommendations.",
+      category: "Media Consumption",
+      tags: ["Video", "Entertainment", "Viewing"]
+    },
+    {
+      title: "Search Query Analysis",
+      description: "Analyze search queries to improve search results and recommendations.",
+      category: "Data Analysis",
+      tags: ["Search", "Queries", "Optimization"]
+    },
+    {
+      title: "Device Usage Patterns",
+      description: "Monitor device usage patterns to enhance user experience across devices.",
+      category: "Data Analysis",
+      tags: ["Devices", "Usage", "Cross-platform"]
+    },
+    {
+      title: "Financial Behavior Analysis",
+      description: "Analyze financial behavior to provide personalized financial advice.",
+      category: "Data Analysis",
+      tags: ["Finance", "Spending", "Budgeting"]
+    },
+    {
+      title: "Travel Preferences Survey",
+      description: "Collect information about travel preferences to provide tailored travel recommendations.",
+      category: "Survey",
+      tags: ["Travel", "Preferences", "Tourism"]
+    },
+    {
+      title: "Social Interaction Patterns",
+      description: "Analyze social interaction patterns to improve social networking experiences.",
+      category: "Data Analysis",
+      tags: ["Social", "Interaction", "Networking"]
+    },
+    {
+      title: "Learning Style Assessment",
+      description: "Assess learning styles to provide optimized educational content.",
+      category: "Survey",
+      tags: ["Education", "Learning", "Assessment"]
+    },
+    {
+      title: "Professional Skills Analysis",
+      description: "Analyze professional skills to recommend career development opportunities.",
+      category: "Data Analysis",
+      tags: ["Career", "Skills", "Professional"]
+    },
+    {
+      title: "News Consumption Patterns",
+      description: "Track news consumption patterns to deliver personalized news content.",
+      category: "Media Consumption",
+      tags: ["News", "Media", "Information"]
+    },
+    {
+      title: "Gaming Behavior Analysis",
+      description: "Analyze gaming behavior to enhance gaming experiences and recommendations.",
+      category: "Lifestyle Activity",
+      tags: ["Gaming", "Entertainment", "Behavior"]
+    },
+    {
+      title: "Productivity Tool Usage",
+      description: "Monitor productivity tool usage to improve workflow efficiency.",
+      category: "Data Analysis",
+      tags: ["Productivity", "Tools", "Efficiency"]
+    },
+    {
+      title: "Weather Preference Collection",
+      description: "Collect weather preferences to provide personalized weather recommendations.",
+      category: "Survey",
+      tags: ["Weather", "Preferences", "Environment"]
+    },
+    {
+      title: "Transportation Mode Analysis",
+      description: "Analyze transportation modes to optimize travel recommendations.",
+      category: "Data Analysis",
+      tags: ["Transportation", "Travel", "Commute"]
+    },
+    {
+      title: "Home Automation Preferences",
+      description: "Collect home automation preferences to enhance smart home experiences.",
+      category: "Survey",
+      tags: ["Smart Home", "Automation", "IoT"]
+    },
+    {
+      title: "Art and Design Preferences",
+      description: "Analyze art and design preferences to curate personalized aesthetic experiences.",
+      category: "Content Evaluation",
+      tags: ["Art", "Design", "Aesthetics"]
+    },
+    {
+      title: "Language Learning Progress",
+      description: "Track language learning progress to provide optimized language learning content.",
+      category: "Education",
+      tags: ["Language", "Learning", "Education"]
+    },
+    {
+      title: "Podcast Listening Behavior",
+      description: "Analyze podcast listening behavior to improve podcast recommendations.",
+      category: "Media Consumption",
+      tags: ["Podcast", "Audio", "Content"]
+    },
+    {
+      title: "Fitness Goal Tracking",
+      description: "Track fitness goals to provide personalized workout recommendations.",
+      category: "Lifestyle Activity",
+      tags: ["Fitness", "Goals", "Health"]
+    },
+    {
+      title: "Calendar Usage Patterns",
+      description: "Analyze calendar usage patterns to optimize scheduling and productivity.",
+      category: "Data Analysis",
+      tags: ["Calendar", "Scheduling", "Productivity"]
+    },
+    {
+      title: "Photo Taking Patterns",
+      description: "Analyze photo taking patterns to enhance photography experiences.",
+      category: "Lifestyle Activity",
+      tags: ["Photography", "Photos", "Memories"]
+    },
+    {
+      title: "Restaurant Preference Collection",
+      description: "Collect restaurant preferences to provide personalized dining recommendations.",
+      category: "Survey",
+      tags: ["Dining", "Food", "Restaurants"]
+    },
+    {
+      title: "Voice Assistant Interaction",
+      description: "Analyze voice assistant interactions to improve voice-based experiences.",
+      category: "Data Analysis",
+      tags: ["Voice", "Assistant", "AI"]
+    },
+    {
+      title: "Digital Content Creation",
+      description: "Track digital content creation to provide personalized creative tools.",
+      category: "Content Evaluation",
+      tags: ["Creation", "Content", "Digital"]
+    },
+    {
+      title: "Messaging Pattern Analysis",
+      description: "Analyze messaging patterns to enhance communication experiences.",
+      category: "Data Analysis",
+      tags: ["Messaging", "Communication", "Social"]
+    },
+    {
+      title: "Map Usage Behavior",
+      description: "Analyze map usage behavior to improve navigation and location services.",
+      category: "Data Analysis",
+      tags: ["Maps", "Navigation", "Location"]
+    },
+    {
+      title: "Network Connection Analysis",
+      description: "Analyze network connection patterns to optimize connectivity services.",
+      category: "Data Analysis",
+      tags: ["Network", "Connection", "Internet"]
+    },
+    {
+      title: "Notification Interaction Patterns",
+      description: "Analyze notification interaction patterns to improve notification systems.",
+      category: "Data Analysis",
+      tags: ["Notifications", "Interaction", "UX"]
+    },
+    {
+      title: "Screen Time Analysis",
+      description: "Analyze screen time patterns to promote digital wellbeing.",
+      category: "Lifestyle Activity",
+      tags: ["Screen Time", "Digital Health", "Wellbeing"]
+    },
+    {
+      title: "Password Management Behavior",
+      description: "Analyze password management behavior to enhance security practices.",
+      category: "Data Analysis",
+      tags: ["Security", "Passwords", "Privacy"]
+    },
+    {
+      title: "Subscription Service Usage",
+      description: "Analyze subscription service usage to optimize subscription recommendations.",
+      category: "Data Analysis",
+      tags: ["Subscriptions", "Services", "Usage"]
+    },
+    {
+      title: "Weather Impact on Activities",
+      description: "Analyze how weather impacts daily activities to provide weather-aware recommendations.",
+      category: "Data Analysis",
+      tags: ["Weather", "Activities", "Planning"]
+    },
+    {
+      title: "Public Transportation Usage",
+      description: "Analyze public transportation usage to optimize transit recommendations.",
+      category: "Data Analysis",
+      tags: ["Transportation", "Public Transit", "Commute"]
+    },
+    {
+      title: "Digital Payment Behavior",
+      description: "Analyze digital payment behavior to enhance payment experiences.",
+      category: "Data Analysis",
+      tags: ["Payments", "Digital", "Finance"]
+    },
+    {
+      title: "Remote Work Productivity",
+      description: "Analyze remote work productivity to provide personalized work environment recommendations.",
+      category: "Data Analysis",
+      tags: ["Remote Work", "Productivity", "Work Environment"]
+    },
+    {
+      title: "Cultural Event Preferences",
+      description: "Collect cultural event preferences to provide personalized event recommendations.",
+      category: "Survey",
+      tags: ["Culture", "Events", "Entertainment"]
+    }
+  ];
+  
+  // 新しいタスクを生成する関数
+  const generateNewTask = () => {
+    // ランダムなダミータスクを選択
+    const randomTaskTemplate = dummyTasks[Math.floor(Math.random() * dummyTasks.length)];
+    
+    const id = `task-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    
+    return {
+      id,
+      title: randomTaskTemplate.title,
+      description: randomTaskTemplate.description,
+      category: randomTaskTemplate.category,
+      reward: Math.floor(Math.random() * 30) + 5, // 5〜35 XP
+      tags: randomTaskTemplate.tags
+    };
+  };
+  
+  // タスクストリームシミュレーション
+  useEffect(() => {
+    // クリーンアップ用の変数
+    let taskGenerationInterval: NodeJS.Timeout;
+    
+    // アクティビティタブが表示されている場合のみタスク生成を行う
+    if (activeTab === 'Activity') {
+      // Activityタブが表示されたら即座に最初のタスクを生成
+      if (taskQueue.length === 0 && !currentTask && !isProcessingTask) {
+        const newTask = generateNewTask();
+        setTaskQueue([newTask]);
+        
+        // すぐに処理を開始
+        setTimeout(() => {
+          processNextTask();
+        }, 300); // 300ミリ秒後に処理開始（短い初期遅延）
+      }
+      
+      // その後は定期的にタスクを生成
+      taskGenerationInterval = setInterval(() => {
+        const tasksToGenerate = Math.floor(Math.random() * 2) + 1; // 1〜2個のタスクを生成
+        
+        for (let i = 0; i < tasksToGenerate; i++) {
+          const newTask = generateNewTask();
+          setTaskQueue(prevQueue => [...prevQueue, newTask]);
+        }
+      }, 5000); // 5秒ごとに新しいタスクを生成（従来のまま）
+    }
+    
+    return () => {
+      clearInterval(taskGenerationInterval);
+    };
+  }, [activeTab, currentTask, isProcessingTask, taskQueue.length]);
+  
+  // タスク処理ロジック
+  const processNextTask = () => {
+    if (taskQueue.length === 0 || isProcessingTask || currentTask) {
+      return;
+    }
+    
+    setIsProcessingTask(true);
+    
+    // キューから最初のタスクを取り出し、現在のタスクとして設定
+    const nextTask = taskQueue[0];
+    setCurrentTask({
+      ...nextTask,
+      status: 'waiting'
+    });
+    
+    // キューから取り出したタスクを削除
+    setTaskQueue(prevQueue => prevQueue.slice(1));
+    
+    // タスク評価開始までの短い遅延（500ミリ秒→300ミリ秒に短縮）
+    setTimeout(() => {
+      // タスク評価プロセスを開始
+      setCurrentTask(prev => prev ? { ...prev, status: 'matching', matchProgress: 0 } : null);
+      
+      // マッチング進捗をシミュレート
+      const matchInterval = setInterval(() => {
+        setCurrentTask(prev => {
+          if (!prev || prev.status !== 'matching') {
+            clearInterval(matchInterval);
+            return prev;
+          }
+          
+          const newProgress = (prev.matchProgress || 0) + 10; // 10%ずつ進捗（変更なし）
+          
+          if (newProgress >= 100) {
+            clearInterval(matchInterval);
+            
+            // マッチング判定（50%の確率でマッチ）- 確率は従来のまま
+            const isMatch = Math.random() < 0.5;
+            
+            // マッチング結果を表示
+            return { 
+              ...prev, 
+              status: isMatch ? 'matched' : 'rejected',
+              matchProgress: 100
+            };
+          }
+          
+          return { ...prev, matchProgress: newProgress };
+        });
+      }, 150); // 150ミリ秒ごとに進捗更新（少し高速化）
+      
+      // マッチング後の処理
+      const evaluationDuration = 1800; // 1.8秒の評価時間（短縮）
+      setTimeout(() => {
+        setCurrentTask(prev => {
+          if (!prev) return null;
+          
+          if (prev.status === 'matched') {
+            // タスクをToDo状態で追加
+            setStreamTasks(prevTasks => [
+              ...prevTasks, 
+              { 
+                ...prev, 
+                status: 'todo', 
+                createdAt: new Date() 
+              }
+            ]);
+          }
+          
+          return null; // 現在のタスクをクリア
+        });
+        
+        // 次のタスクを処理する準備
+        setTimeout(() => {
+          setIsProcessingTask(false);
+          
+          // キューに次のタスクがあれば処理を継続
+          if (taskQueue.length > 0) {
+            processNextTask();
+          }
+        }, 500); // 次のタスク処理までの間隔（短縮）
+        
+      }, evaluationDuration);
+      
+    }, 300); // タスク評価開始までの遅延（短縮）
+  };
+  
+  // タスクキューが変更されたとき、新しいタスクの処理を開始
+  useEffect(() => {
+    processNextTask();
+  }, [taskQueue, processNextTask]);
+  
+  // タスクストリームシミュレーション
+  useEffect(() => {
+    // Activityタブが表示されているときのみシミュレーションを実行
+    if (activeTab !== 'Activity') return;
+    
+    // 初期タスク
+    const initialTasks = [
+      {
+        id: 'task-initial-1',
+        title: 'Shopping Pattern Analysis',
+        description: 'This task analyzes your online shopping habits and patterns to better understand your preferences.',
+        category: 'Data Analysis',
+        reward: 20,
+        status: 'todo' as const,
+        tags: ["Shopping", "E-commerce", "Patterns"],
+        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000) // 1日前
+      }
+    ];
+    
+    setStreamTasks(initialTasks);
+    
+    // 5〜10秒ごとに新しいタスクをキューに追加
+    const taskInterval = setInterval(() => {
+      const newTask = generateNewTask();
+      setTaskQueue(prev => [...prev, newTask]);
+    }, Math.floor(Math.random() * 5000) + 5000); // 5〜10秒ごと
+    
+    return () => {
+      clearInterval(taskInterval);
+    };
+  }, [activeTab]);
+  
+  // タスクを完了する
+  const completeTask = (taskId: string) => {
+    // 対象のタスクを探す
+    const targetTask = streamTasks.find(task => task.id === taskId);
+    if (!targetTask) return;
+    
+    // タスクを完了状態に更新
+    setStreamTasks(prev => 
+      prev.map(task => 
+        task.id === taskId 
+          ? { ...task, status: 'completed' } 
+          : task
+      )
+    );
+    
+    // 完了した活動としてログに追加
+    const newActivity: AgentActivity = {
+      id: `act-${Date.now()}`,
+      title: targetTask.title,
+      category: targetTask.category,
+      timestamp: new Date(),
+      status: 'completed',
+      description: `Completed: ${targetTask.description.slice(0, 40)}...`,
+      reward: targetTask.reward,
+      icon: 'check'
+    };
+    
+    setAgentActivities(prev => [newActivity, ...prev]);
+  };
 
   // コンポーネントマウント時に次回クレーム時間を取得
   useEffect(() => {
@@ -1660,178 +2293,278 @@ const TopPage: React.FC<TopPageProps> = ({ userId, onAuth }) => {
                 <RobotIcon className="text-white h-6 w-6" />
               </div>
               <div className="flex-1">
-                <div className="font-bold text-sm">Agent Status: Active</div>
+                <div className="font-bold text-sm">Agent Status: Active (Level {avatarLevel})</div>
                 <div className="text-xs text-slate-600 flex items-center gap-1">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span>Working on 1 task</span>
+                  <span>Analyzing task stream</span>
                 </div>
               </div>
-              <div className="border border-slate-800 text-slate-800 text-xs px-2 py-1 rounded-full">+62 XP Total</div>
-            </div>
-
-            {/* Activity List */}
-            <div className="space-y-4">
-              {/* ステータスラベル：進行中 */}
-              <div className="border-l-4 border-amber-500 pl-2 py-1 text-xs font-medium text-slate-700 bg-amber-50 rounded-r-md">
-                In Progress
-              </div>
-              
-              {/* Activity Item - 進行中 */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-                <div className="p-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center border border-blue-200 text-blue-600">
-                        <ClockIcon className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-sm">Media Consumption</div>
-                        <div className="text-xs text-slate-500">
-                          Survey • Now
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <LoaderIcon className="h-5 w-5 text-amber-500 animate-spin" />
-                      <div className="border border-amber-200 text-amber-600 text-xs font-bold px-2 py-1 rounded-full">
-                        +20 XP
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-xs text-slate-600 border border-gray-100 bg-gray-50 p-2 rounded">
-                    Analyzing media consumption patterns...
-                  </div>
-                </div>
-              </div>
-
-              {/* ステータスラベル：中断 */}
-              <div className="border-l-4 border-red-500 pl-2 py-1 text-xs font-medium text-slate-700 bg-red-50 rounded-r-md mt-6">
-                Interrupted
-              </div>
-              
-              {/* Activity Item - 中断 */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-                <div className="p-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center border border-purple-200 text-purple-600">
-                        <ClockIcon className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-sm">Browser History</div>
-                        <div className="text-xs text-slate-500">
-                          Data • 2d ago
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <AlertCircleIcon className="h-5 w-5 text-red-500" />
-                      <div className="border border-amber-200 text-amber-600 text-xs font-bold px-2 py-1 rounded-full">
-                        +25 XP
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-xs text-slate-600 border border-gray-100 bg-gray-50 p-2 rounded">
-                    Unable to access browser history data
-                  </div>
-                </div>
-              </div>
-
-              {/* ステータスラベル：完了 */}
-              <div className="border-l-4 border-green-500 pl-2 py-1 text-xs font-medium text-slate-700 bg-green-50 rounded-r-md mt-6">
-                Completed
-              </div>
-              
-              {/* Activity Item - 完了 1 */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-                <div className="p-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center border border-blue-200 text-blue-600">
-                        <ClockIcon className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-sm">Shopping Preferences</div>
-                        <div className="text-xs text-slate-500">
-                          Survey • 2h ago
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                      <div className="border border-amber-200 text-amber-600 text-xs font-bold px-2 py-1 rounded-full">
-                        +15 XP
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-xs text-slate-600 border border-gray-100 bg-gray-50 p-2 rounded">
-                    Provided data on shopping habits and preferences
-                  </div>
-                </div>
-              </div>
-
-              {/* Activity Item - 完了 2 */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-                <div className="p-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center border border-purple-200 text-purple-600">
-                        <ClockIcon className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-sm">Location Data</div>
-                        <div className="text-xs text-slate-500">
-                          Data • 5h ago
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                      <div className="border border-amber-200 text-amber-600 text-xs font-bold px-2 py-1 rounded-full">
-                        +10 XP
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-xs text-slate-600 border border-gray-100 bg-gray-50 p-2 rounded">
-                    Shared anonymized location data
-                  </div>
-                </div>
-              </div>
-
-              {/* Activity Item - 完了 3 */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-                <div className="p-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center border border-green-200 text-green-600">
-                        <ClockIcon className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-sm">App Usage Statistics</div>
-                        <div className="text-xs text-slate-500">
-                          Analysis • 1d ago
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                      <div className="border border-amber-200 text-amber-600 text-xs font-bold px-2 py-1 rounded-full">
-                        +12 XP
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-xs text-slate-600 border border-gray-100 bg-gray-50 p-2 rounded">
-                    Analyzed app usage patterns and preferences
-                  </div>
-                </div>
+              <div className="border border-slate-800 text-slate-800 text-xs px-2 py-1 rounded-full">
+                +{agentActivities.reduce((sum, act) => act.status === 'completed' ? sum + act.reward : sum, 0)} XP Total
               </div>
             </div>
+            
+            {/* タスクストリームセクション */}
+            <div className="relative h-[350px] border border-gray-200 rounded-lg overflow-hidden bg-gray-50 mb-8">
+              {/* タスクストリーム */}
+              <div className="h-full w-full overflow-hidden relative">
+                {/* 中央のエージェントアバター */}
+                <div className="absolute left-4 top-4 z-10">
+                  <div className="w-20 h-20 bg-black rounded-full flex items-center justify-center shadow-lg">
+                    <RobotIcon className="text-white h-12 w-12" />
+                  </div>
+                  {/* レベル表示を削除 */}
+                </div>
+                
+                {/* 現在処理中のタスク */}
+                {currentTask && (
+                  <div
+                    className={`absolute bg-white rounded-lg shadow-md p-3 border ${
+                      currentTask.status === 'matched' ? 'border-green-300' :
+                      currentTask.status === 'rejected' ? 'border-red-300' : 'border-gray-200'
+                    }`}
+                    style={{
+                      width: '250px',
+                      left: '50%',
+                      top: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      animation: 
+                        currentTask.status === 'matched' ? 'slideDown 2s ease-in-out forwards' :
+                        currentTask.status === 'rejected' ? 'slideUp 2s ease-in-out forwards' :
+                        'none'
+                    }}
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="font-medium text-sm">{currentTask.title}</div>
+                      <div className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">
+                        +{currentTask.reward} XP
+                      </div>
+                    </div>
+                    
+                    <div className="text-xs text-gray-600 mb-2">
+                      {currentTask.description}
+                    </div>
+                    
+                    {/* タグの表示 */}
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {currentTask.tags.map((tag, index) => (
+                        <span 
+                          key={index} 
+                          className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    
+                    {/* マッチング進捗バー */}
+                    {currentTask.status === 'matching' && typeof currentTask.matchProgress === 'number' && (
+                      <div className="w-full mt-2">
+                        <div className="text-xs text-gray-500 mb-1 flex justify-between">
+                          <span>Analyzing match...</span>
+                          <span>{currentTask.matchProgress}%</span>
+                        </div>
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-blue-500 transition-all duration-100" 
+                            style={{ width: `${currentTask.matchProgress}%` }} 
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* マッチング結果アイコン */}
+                    {currentTask.status === 'matched' && (
+                      <div className="absolute -right-2 -top-2 bg-green-500 text-white rounded-full p-1">
+                        <CheckIcon className="h-4 w-4" />
+                      </div>
+                    )}
+                    
+                    {currentTask.status === 'rejected' && (
+                      <div className="absolute -right-2 -top-2 bg-red-500 text-white rounded-full p-1">
+                        <XIcon className="h-4 w-4" />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              {/* アニメーション用CSS */}
+              <style dangerouslySetInnerHTML={{
+                __html: `
+                  @keyframes slideDown {
+                    0% { transform: translate(-50%, -50%); }
+                    100% { transform: translate(-50%, 250%); }
+                  }
+                  
+                  @keyframes slideUp {
+                    0% { transform: translate(-50%, -50%); }
+                    100% { transform: translate(-50%, -250%); }
+                  }
+                `
+              }} />
+            </div>
+            
+            {/* Activity Log */}
+            <div>
+              <h3 className="text-lg font-medium mb-4">Activity Log</h3>
+              <div className="space-y-4">
+                {/* 進行中の活動 */}
+                {agentActivities.filter(activity => activity.status === 'in-progress').length > 0 && (
+                  <>
+                    <div className="border-l-4 border-amber-500 pl-2 py-1 text-xs font-medium text-slate-700 bg-amber-50 rounded-r-md">
+                      In Progress
+                    </div>
+                    
+                    {agentActivities
+                      .filter(activity => activity.status === 'in-progress')
+                      .map(activity => (
+                        <div key={activity.id} className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                          <div className="p-4">
+                            <div className="flex justify-between items-center mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center border border-blue-200 text-blue-600">
+                                  <ClockIcon className="h-4 w-4" />
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-sm">{activity.title}</div>
+                                  <div className="text-xs text-slate-500">
+                                    {activity.category} • {getRelativeTime(activity.timestamp)}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <LoaderIcon className="h-5 w-5 text-amber-500 animate-spin" />
+                                <div className="border border-amber-200 text-amber-600 text-xs font-bold px-2 py-1 rounded-full">
+                                  +{activity.reward} XP
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-xs text-slate-600 border border-gray-100 bg-gray-50 p-2 rounded">
+                              {activity.description}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </>
+                )}
+                
+                {/* 中断された活動 */}
+                {agentActivities.filter(activity => activity.status === 'interrupted').length > 0 && (
+                  <>
+                    <div className="border-l-4 border-red-500 pl-2 py-1 text-xs font-medium text-slate-700 bg-red-50 rounded-r-md mt-6">
+                      Interrupted
+                    </div>
+                    
+                    {agentActivities
+                      .filter(activity => activity.status === 'interrupted')
+                      .map(activity => (
+                        <div key={activity.id} className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                          <div className="p-4">
+                            <div className="flex justify-between items-center mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center border border-purple-200 text-purple-600">
+                                  <ClockIcon className="h-4 w-4" />
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-sm">{activity.title}</div>
+                                  <div className="text-xs text-slate-500">
+                                    {activity.category} • {getRelativeTime(activity.timestamp)}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <AlertCircleIcon className="h-5 w-5 text-red-500" />
+                                <div className="border border-amber-200 text-amber-600 text-xs font-bold px-2 py-1 rounded-full">
+                                  +{activity.reward} XP
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-xs text-slate-600 border border-gray-100 bg-gray-50 p-2 rounded">
+                              {activity.description}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </>
+                )}
+                
+                {/* 完了した活動 */}
+                {agentActivities.filter(activity => activity.status === 'completed').length > 0 && (
+                  <>
+                    <div className="border-l-4 border-green-500 pl-2 py-1 text-xs font-medium text-slate-700 bg-green-50 rounded-r-md mt-6">
+                      Completed
+                    </div>
+                    
+                    {agentActivities
+                      .filter(activity => activity.status === 'completed')
+                      .map(activity => (
+                        <div key={activity.id} className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                          <div className="p-4">
+                            <div className="flex justify-between items-center mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center border border-blue-200 text-blue-600">
+                                  <ClockIcon className="h-4 w-4" />
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-sm">{activity.title}</div>
+                                  <div className="text-xs text-slate-500">
+                                    {activity.category} • {getRelativeTime(activity.timestamp)}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                                <div className="border border-amber-200 text-amber-600 text-xs font-bold px-2 py-1 rounded-full">
+                                  +{activity.reward} XP
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-xs text-slate-600 border border-gray-100 bg-gray-50 p-2 rounded">
+                              {activity.description}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </>
+                )}
+              </div>
+            </div>
+            
+            {/* Activity Pageへのリンク */}
+            {onNavigate && (
+              <div className="mt-8 flex justify-center">
+                <button
+                  onClick={() => onNavigate('activity')}
+                  className="py-2 px-4 bg-black text-white rounded-full flex items-center gap-2 hover:bg-gray-800 transition-colors"
+                >
+                  <span>詳細ビューを開く</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M12 5L19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
     </div>
   );
 };
+
+// 相対的な時間を取得するヘルパー関数
+function getRelativeTime(date: Date): string {
+  const now = new Date();
+  const diff = Math.floor((now.getTime() - date.getTime()) / 1000); // 秒単位の差
+  
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
+  
+  return date.toLocaleDateString();
+}
 
 // デフォルトエクスポートを追加
 export default TopPage;
