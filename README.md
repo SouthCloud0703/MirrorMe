@@ -264,58 +264,105 @@ This will launch the development environment.
 
 # MIR Token
 
-WorldChainメインネット上にデプロイするためのMIR Tokenコントラクトです。
+MIR Token contract for deployment on WorldChain mainnet.
 
-## 機能
+## Features
 
-- ERC20規格に準拠
-- バーン機能
-- オーナー専用のミント機能
-- 初期供給量: 1,000,000 MIR
+- ERC20 standard compliant
+- Burn functionality
+- Owner-only mint functionality
+- Initial supply: 1,000,000 MIR
 
-## セットアップ
+## Setup
 
-1. リポジトリをクローンする
+1. Clone the repository
 ```
-git clone <リポジトリURL>
+git clone <repository URL>
 cd mir-token
 ```
 
-2. 依存関係をインストールする
+2. Install dependencies
 ```
 npm install
 ```
 
-3. `.env.example`ファイルを`.env`にコピーし、プライベートキーを設定する
+3. Copy `.env.example` to `.env` and set your private key
 ```
 cp .env.example .env
 ```
-`.env`ファイルを編集し、`PRIVATE_KEY`にあなたのプライベートキーを設定してください。
+Edit the `.env` file and set your private key in the `PRIVATE_KEY` field.
 
-## コンパイル
+## Compile
 
 ```
 npm run compile
 ```
 
-## テスト
+## Test
 
 ```
 npm run test
 ```
 
-## デプロイ
+## Deploy
 
-WorldChainメインネットにデプロイ:
+Deploy to WorldChain mainnet:
 ```
 npm run deploy
 ```
 
-## セキュリティ注意事項
+## Security Notes
 
-- プライベートキーは絶対に公開リポジトリにコミットしないでください
-- 本番環境へのデプロイ前に、コントラクトのセキュリティ監査を検討してください
+- Never commit your private key to a public repository
+- Consider a security audit for the contract before deploying to production
 
-## ライセンス
+## License
 
 MIT
+
+# Deployed Contract Information
+
+## WorldChain Mainnet
+
+- **MIR Token Contract**: `0xd6F752fd03C00A673b5bE7f7E3028c269d1ba1d0`
+- **MIR Claim Contract**: `0x29048B068fA58a1cf104046D38ff49aa6E6fD399`
+- **Chain ID**: `480`
+- **RPC URL**: `https://worldchain-mainnet.g.alchemy.com/v2/MnQ8dUniBLMABxOq-QQjFJB4rVr2Zq73`
+
+## MIR Claim Contract Features
+
+- Token distribution adjustments based on user level (1-5)
+- Daily claim limit (24-hour cooldown)
+- Ad viewing feature to reduce cooldown time (1-hour reduction)
+- Level-based claim limits:
+  - Level 1: 10 MIR/day
+  - Level 2: 20 MIR/day
+  - Level 3: 30 MIR/day
+  - Level 4: 50 MIR/day
+  - Level 5: 100 MIR/day
+
+## Integration with World App MiniKit
+
+In the MiniApp, the World App MiniKit's `sendTransaction` command is used to interact with smart contracts. The main interaction methods are as follows:
+
+```typescript
+// Token claim example
+const { finalPayload } = await window.MiniKit.commandsAsync.sendTransaction({
+  transaction: [{
+    address: MIR_CLAIM_CONTRACT_ADDRESS,
+    abi: MIR_CLAIM_ABI,
+    functionName: 'claimTokens',
+    args: [userLevel] // User level (1-5)
+  }]
+});
+
+// Balance check example
+const { finalPayload } = await window.MiniKit.commandsAsync.sendTransaction({
+  transaction: [{
+    address: MIR_TOKEN_ADDRESS,
+    abi: MIR_TOKEN_ABI,
+    functionName: 'balanceOf',
+    args: [userAddress]
+  }]
+});
+```

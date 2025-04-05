@@ -13,6 +13,10 @@ declare global {
         }) => Promise<{finalPayload: any}>;
         walletAuth: (options: any) => Promise<{finalPayload: any}>;
         sendTransaction: (options: any) => Promise<{finalPayload: any}>;
+        ethCall: (options: {
+          to: string;
+          data: string;
+        }) => Promise<{finalPayload: any}>;
       }
     }
   }
