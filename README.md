@@ -261,3 +261,61 @@ tunnelmole 5173
 ```
 
 This will launch the development environment.
+
+# MIR Token
+
+WorldChainメインネット上にデプロイするためのMIR Tokenコントラクトです。
+
+## 機能
+
+- ERC20規格に準拠
+- バーン機能
+- オーナー専用のミント機能
+- 初期供給量: 1,000,000 MIR
+
+## セットアップ
+
+1. リポジトリをクローンする
+```
+git clone <リポジトリURL>
+cd mir-token
+```
+
+2. 依存関係をインストールする
+```
+npm install
+```
+
+3. `.env.example`ファイルを`.env`にコピーし、プライベートキーを設定する
+```
+cp .env.example .env
+```
+`.env`ファイルを編集し、`PRIVATE_KEY`にあなたのプライベートキーを設定してください。
+
+## コンパイル
+
+```
+npm run compile
+```
+
+## テスト
+
+```
+npm run test
+```
+
+## デプロイ
+
+WorldChainメインネットにデプロイ:
+```
+npm run deploy
+```
+
+## セキュリティ注意事項
+
+- プライベートキーは絶対に公開リポジトリにコミットしないでください
+- 本番環境へのデプロイ前に、コントラクトのセキュリティ監査を検討してください
+
+## ライセンス
+
+MIT
