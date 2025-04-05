@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 
 // World App MiniKit用の型定義拡張
 declare global {
@@ -347,9 +347,10 @@ const TopPage: React.FC<TopPageProps> = ({ userId, onAuth, onNavigate }) => {
     description: string;
     category: string;
     reward: number;
-    status: 'waiting' | 'matching' | 'matched' | 'rejected';
+    status: 'waiting' | 'matching' | 'matched' | 'rejected' | 'sliding'; // statusに'sliding'を追加
     matchProgress?: number;
     tags: string[];
+    slideDirection?: 'up' | 'down'; // スライド方向を追加
   } | null>(null);
 
   // タスク処理中かどうかのフラグ
@@ -419,8 +420,9 @@ const TopPage: React.FC<TopPageProps> = ({ userId, onAuth, onNavigate }) => {
     }
   ]);
   
-  // プリセットダミータスクデータ（50種類）
+  // プリセットダミータスクデータ（70種類に拡張）
   const dummyTasks = [
+    // 既存のタスク（タグ修正）
     {
       title: "User Preference Analysis",
       description: "Analyze user preferences based on browsing history and interaction patterns.",
@@ -726,59 +728,218 @@ const TopPage: React.FC<TopPageProps> = ({ userId, onAuth, onNavigate }) => {
       description: "Collect cultural event preferences to provide personalized event recommendations.",
       category: "Survey",
       tags: ["Culture", "Events", "Entertainment"]
+    },
+    
+    // 新しく追加する20種類のタスク
+    {
+      title: "Virtual Reality Experience Feedback",
+      description: "Provide feedback on virtual reality experiences to help improve immersion and comfort.",
+      category: "User Testing",
+      tags: ["VR", "Feedback", "Immersive Tech"]
+    },
+    {
+      title: "Augmented Reality Interaction Analysis",
+      description: "Analyze user interactions with augmented reality applications to enhance usability.",
+      category: "Technology Assessment",
+      tags: ["AR", "Interaction", "UX Research"]
+    },
+    {
+      title: "Wearable Device Data Collection",
+      description: "Collect and analyze data from wearable devices to improve health insights.",
+      category: "Health Tech",
+      tags: ["Wearables", "Health Data", "IoT"]
+    },
+    {
+      title: "Smart City Sensor Evaluation",
+      description: "Evaluate data from urban sensors to optimize city services and infrastructure.",
+      category: "Urban Technology",
+      tags: ["Smart City", "Sensors", "Urban Planning"]
+    },
+    {
+      title: "Blockchain Application User Study",
+      description: "Participate in a user study for blockchain applications to improve accessibility.",
+      category: "Financial Technology",
+      tags: ["Blockchain", "Crypto", "User Research"]
+    },
+    {
+      title: "Voice Interface Usability Test",
+      description: "Test voice interface systems to enhance natural language understanding and response.",
+      category: "Interface Testing",
+      tags: ["Voice UI", "Usability", "AI"]
+    },
+    {
+      title: "Sustainability Impact Assessment",
+      description: "Assess personal carbon footprint and receive eco-friendly recommendations.",
+      category: "Environmental Analysis",
+      tags: ["Sustainability", "Carbon Footprint", "Green Tech"]
+    },
+    {
+      title: "Mental Wellbeing Check-in",
+      description: "Complete a wellbeing assessment to receive personalized mindfulness recommendations.",
+      category: "Wellness",
+      tags: ["Mental Health", "Mindfulness", "Wellbeing"]
+    },
+    {
+      title: "Home Energy Optimization",
+      description: "Analyze home energy usage patterns to suggest efficiency improvements.",
+      category: "Energy Management",
+      tags: ["Energy", "Smart Home", "Sustainability"]
+    },
+    {
+      title: "Online Learning Effectiveness Survey",
+      description: "Evaluate online learning experiences to improve educational platform design.",
+      category: "Education Technology",
+      tags: ["E-Learning", "EdTech", "Education"]
+    },
+    {
+      title: "Autonomous Vehicle Perception Test",
+      description: "Participate in testing how autonomous vehicles perceive and respond to environments.",
+      category: "Transportation Technology",
+      tags: ["Autonomous", "Vehicles", "AI"]
+    },
+    {
+      title: "Biometric Authentication Experience",
+      description: "Test and provide feedback on biometric authentication systems.",
+      category: "Security Technology",
+      tags: ["Biometrics", "Authentication", "Security"]
+    },
+    {
+      title: "Remote Collaboration Tool Assessment",
+      description: "Assess remote collaboration tools to enhance distributed team productivity.",
+      category: "Workplace Technology",
+      tags: ["Collaboration", "Remote Work", "Productivity"]
+    },
+    {
+      title: "Digital Accessibility Evaluation",
+      description: "Evaluate websites and apps for accessibility compliance and user experience.",
+      category: "Accessibility",
+      tags: ["Inclusive Design", "Accessibility", "UX"]
+    },
+    {
+      title: "Personal Knowledge Management",
+      description: "Analyze note-taking and information organization habits to suggest optimizations.",
+      category: "Productivity",
+      tags: ["Knowledge Management", "Notes", "Organization"]
+    },
+    {
+      title: "AI Art Generation Feedback",
+      description: "Provide feedback on AI-generated art to improve creative algorithms.",
+      category: "Creative Technology",
+      tags: ["AI Art", "Creativity", "Generative"]
+    },
+    {
+      title: "Quantum Computing Awareness Assessment",
+      description: "Assess understanding of quantum computing concepts to personalize educational content.",
+      category: "Technology Education",
+      tags: ["Quantum", "Education", "Future Tech"]
+    },
+    {
+      title: "Robotic Process Observer",
+      description: "Observe robotic process automation to identify optimization opportunities.",
+      category: "Automation Technology",
+      tags: ["Robotics", "Automation", "Processes"]
+    },
+    {
+      title: "Digital Detox Pattern Analysis",
+      description: "Analyze technology usage breaks to develop healthier digital habits.",
+      category: "Digital Wellbeing",
+      tags: ["Digital Detox", "Wellbeing", "Balance"]
+    },
+    {
+      title: "Circular Economy Participation",
+      description: "Track product lifecycles and recycling habits to promote circular economy practices.",
+      category: "Sustainable Consumption",
+      tags: ["Circular Economy", "Recycling", "Sustainability"]
     }
   ];
   
-  // 新しいタスクを生成する関数
-  const generateNewTask = () => {
-    // ランダムなダミータスクを選択
-    const randomTaskTemplate = dummyTasks[Math.floor(Math.random() * dummyTasks.length)];
-    
-    const id = `task-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    
-    return {
-      id,
-      title: randomTaskTemplate.title,
-      description: randomTaskTemplate.description,
-      category: randomTaskTemplate.category,
-      reward: Math.floor(Math.random() * 30) + 5, // 5〜35 XP
-      tags: randomTaskTemplate.tags
-    };
+  // タスク選択のための状態変数
+  const lastTaskIndexRef = useRef<number>(-1);
+  // 選択済みインデックスを追跡するための配列
+  const selectedIndicesRef = useRef<number[]>([]);
+
+  // ダミータスク配列をシャッフルする関数
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
   };
-  
+
+  // シャッフルされたダミータスク配列を保持するRef
+  const shuffledTasksRef = useRef<typeof dummyTasks>([]);
+
   // タスクストリームシミュレーション
   useEffect(() => {
-    // クリーンアップ用の変数
-    let taskGenerationInterval: NodeJS.Timeout;
+    // Activityタブが表示されているときのみシミュレーションを実行
+    if (activeTab !== 'Activity') return;
     
-    // アクティビティタブが表示されている場合のみタスク生成を行う
-    if (activeTab === 'Activity') {
-      // Activityタブが表示されたら即座に最初のタスクを生成
-      if (taskQueue.length === 0 && !currentTask && !isProcessingTask) {
-        const newTask = generateNewTask();
-        setTaskQueue([newTask]);
-        
-        // すぐに処理を開始
-        setTimeout(() => {
-          processNextTask();
-        }, 300); // 300ミリ秒後に処理開始（短い初期遅延）
-      }
-      
-      // その後は定期的にタスクを生成
-      taskGenerationInterval = setInterval(() => {
-        const tasksToGenerate = Math.floor(Math.random() * 2) + 1; // 1〜2個のタスクを生成
-        
-        for (let i = 0; i < tasksToGenerate; i++) {
-          const newTask = generateNewTask();
-          setTaskQueue(prevQueue => [...prevQueue, newTask]);
-        }
-      }, 5000); // 5秒ごとに新しいタスクを生成（従来のまま）
+    console.log("アクティビティタブがアクティブになりました - タスクシミュレーション開始");
+    
+    // アプリケーション起動時にダミータスク配列をシャッフル
+    const shuffled = shuffleArray(dummyTasks);
+    shuffledTasksRef.current = shuffled;
+    console.log(`ダミータスク配列をシャッフルしました: ${shuffled.length}個のタスク`);
+    
+    // 先頭と末尾の要素を確認（シャッフル確認用）
+    if (shuffled.length > 0) {
+      console.log(`シャッフル後の先頭タスク: ${shuffled[0].title}`);
+      console.log(`シャッフル後の末尾タスク: ${shuffled[shuffled.length - 1].title}`);
     }
     
+    console.log(`ダミータスク配列の確認: ${shuffled.length}個のタスクが登録されています`);
+    
+    // タスク関連の状態をリセット
+    setCurrentTask(null);
+    setIsProcessingTask(false);
+    lastTaskIndexRef.current = -1; // useRefを使ってインデックスをリセット
+    selectedIndicesRef.current = []; // 選択履歴をクリア
+    
+    // 初期タスク
+    const initialTasks = [
+      {
+        id: 'task-initial-1',
+        title: 'Shopping Pattern Analysis',
+        description: 'This task analyzes your online shopping habits and patterns to better understand your preferences.',
+        category: 'Data Analysis',
+        reward: 20,
+        status: 'todo' as const,
+        tags: ["Shopping", "E-commerce", "Patterns"],
+        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000) // 1日前
+      }
+    ];
+    
+    setStreamTasks(initialTasks);
+    
+    // 初期のタスクキューを設定 - 明示的に異なるインデックスのタスクを使用
+    // 十分な時間間隔をあけて確実に異なるタスクが選択されるようにする
+    const task1 = generateNewTask();
+    
+    setTimeout(() => {
+      const task2 = generateNewTask();
+      
+      setTimeout(() => {
+        const task3 = generateNewTask();
+        console.log("初期タスク生成完了:", task1.title, task2.title, task3.title);
+        setTaskQueue([task1, task2, task3]);
+      }, 50);
+    }, 50);
+    
+    // 5〜10秒ごとに新しいタスクをキューに追加
+    const taskInterval = setInterval(() => {
+      console.log("タスクインターバル: 新しいタスクを生成します");
+      const newTask = generateNewTask();
+      console.log(`生成したタスク: ${newTask.title} (インデックス: ${lastTaskIndexRef.current})`);
+      setTaskQueue(prev => [...prev, newTask]);
+    }, Math.floor(Math.random() * 5000) + 5000); // 5〜10秒ごと
+    
     return () => {
-      clearInterval(taskGenerationInterval);
+      console.log("タスクインターバルをクリア");
+      clearInterval(taskInterval);
     };
-  }, [activeTab, currentTask, isProcessingTask, taskQueue.length]);
+  }, [activeTab]);
   
   // タスク処理ロジック
   const processNextTask = () => {
@@ -798,12 +959,12 @@ const TopPage: React.FC<TopPageProps> = ({ userId, onAuth, onNavigate }) => {
     // キューから取り出したタスクを削除
     setTaskQueue(prevQueue => prevQueue.slice(1));
     
-    // タスク評価開始までの短い遅延（500ミリ秒→300ミリ秒に短縮）
+    // タスク評価開始までの遅延（より自然な印象のために少し待機）
     setTimeout(() => {
       // タスク評価プロセスを開始
       setCurrentTask(prev => prev ? { ...prev, status: 'matching', matchProgress: 0 } : null);
       
-      // マッチング進捗をシミュレート
+      // マッチング進捗をシミュレート - 滑らかなアニメーションのために小刻みな更新
       const matchInterval = setInterval(() => {
         setCurrentTask(prev => {
           if (!prev || prev.status !== 'matching') {
@@ -811,12 +972,13 @@ const TopPage: React.FC<TopPageProps> = ({ userId, onAuth, onNavigate }) => {
             return prev;
           }
           
-          const newProgress = (prev.matchProgress || 0) + 10; // 10%ずつ進捗（変更なし）
+          // より小さな増分で頻繁に更新（滑らかさ向上）
+          const newProgress = (prev.matchProgress || 0) + 5; 
           
           if (newProgress >= 100) {
             clearInterval(matchInterval);
             
-            // マッチング判定（50%の確率でマッチ）- 確率は従来のまま
+            // マッチング判定（50%の確率でマッチ）
             const isMatch = Math.random() < 0.5;
             
             // マッチング結果を表示
@@ -829,10 +991,10 @@ const TopPage: React.FC<TopPageProps> = ({ userId, onAuth, onNavigate }) => {
           
           return { ...prev, matchProgress: newProgress };
         });
-      }, 150); // 150ミリ秒ごとに進捗更新（少し高速化）
+      }, 100); // 100ミリ秒ごとに進捗更新（高頻度・小刻み）
       
       // マッチング後の処理
-      const evaluationDuration = 1800; // 1.8秒の評価時間（短縮）
+      const evaluationDuration = 1800; // 1.8秒の評価時間
       setTimeout(() => {
         setCurrentTask(prev => {
           if (!prev) return null;
@@ -849,60 +1011,52 @@ const TopPage: React.FC<TopPageProps> = ({ userId, onAuth, onNavigate }) => {
             ]);
           }
           
-          return null; // 現在のタスクをクリア
+          // 結果表示後も現在のタスクを維持
+          return prev;
         });
         
-        // 次のタスクを処理する準備
+        // 結果を2秒間中央に表示
         setTimeout(() => {
-          setIsProcessingTask(false);
+          // 2秒後、スライドアニメーションを開始
+          setCurrentTask(prev => {
+            if (!prev) return null;
+            
+            // スライド方向を決定 (matched -> 下, rejected -> 上)
+            const direction = prev.status === 'matched' ? 'down' : 'up';
+            
+            return {
+              ...prev,
+              status: 'sliding',
+              slideDirection: direction
+            };
+          });
           
-          // キューに次のタスクがあれば処理を継続
-          if (taskQueue.length > 0) {
-            processNextTask();
-          }
-        }, 500); // 次のタスク処理までの間隔（短縮）
+          // スライドアニメーション終了後（1秒後）にタスクを消去
+          setTimeout(() => {
+            setCurrentTask(null);
+            
+            // タスクが完全に画面外に出てから次のタスクを準備（0.5秒後）
+            setTimeout(() => {
+              setIsProcessingTask(false);
+              
+              // キューに次のタスクがあれば処理を継続
+              if (taskQueue.length > 0) {
+                processNextTask();
+              }
+            }, 500);
+          }, 1000); // アニメーション時間
+          
+        }, 2000); // 結果表示時間
         
       }, evaluationDuration);
       
-    }, 300); // タスク評価開始までの遅延（短縮）
+    }, 300); // タスク評価開始までの遅延
   };
   
   // タスクキューが変更されたとき、新しいタスクの処理を開始
   useEffect(() => {
     processNextTask();
   }, [taskQueue, processNextTask]);
-  
-  // タスクストリームシミュレーション
-  useEffect(() => {
-    // Activityタブが表示されているときのみシミュレーションを実行
-    if (activeTab !== 'Activity') return;
-    
-    // 初期タスク
-    const initialTasks = [
-      {
-        id: 'task-initial-1',
-        title: 'Shopping Pattern Analysis',
-        description: 'This task analyzes your online shopping habits and patterns to better understand your preferences.',
-        category: 'Data Analysis',
-        reward: 20,
-        status: 'todo' as const,
-        tags: ["Shopping", "E-commerce", "Patterns"],
-        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000) // 1日前
-      }
-    ];
-    
-    setStreamTasks(initialTasks);
-    
-    // 5〜10秒ごとに新しいタスクをキューに追加
-    const taskInterval = setInterval(() => {
-      const newTask = generateNewTask();
-      setTaskQueue(prev => [...prev, newTask]);
-    }, Math.floor(Math.random() * 5000) + 5000); // 5〜10秒ごと
-    
-    return () => {
-      clearInterval(taskInterval);
-    };
-  }, [activeTab]);
   
   // タスクを完了する
   const completeTask = (taskId: string) => {
@@ -1613,6 +1767,119 @@ const TopPage: React.FC<TopPageProps> = ({ userId, onAuth, onNavigate }) => {
     }, 3000);
   };
 
+  // 新しいタスクを生成する関数
+  const generateNewTask = () => {
+    // シャッフルされたタスク配列を使用
+    const tasksToUse = shuffledTasksRef.current.length > 0 
+      ? shuffledTasksRef.current 
+      : dummyTasks;
+    
+    // 配列の長さを確認し、コンソールに表示
+    console.log(`ダミータスクの総数: ${tasksToUse.length}`);
+    
+    // 有効なタスク配列が存在するか確認
+    if (!tasksToUse || tasksToUse.length === 0) {
+      console.error("ダミータスク配列がNULLまたは空です");
+      // 緊急フォールバックタスク
+      return {
+        id: `task-emergency-${Date.now()}`,
+        title: "Emergency Task",
+        description: "This is an emergency task created when no tasks were available.",
+        category: "System",
+        reward: 10,
+        tags: ["System", "Error", "Fallback"]
+      };
+    }
+    
+    let newIndex: number;
+    
+    // 初回の場合はランダムな位置から開始
+    if (lastTaskIndexRef.current === -1) {
+      newIndex = Math.floor(Math.random() * tasksToUse.length);
+      console.log(`初回タスク選択: ランダムインデックス ${newIndex} を選択`);
+    } else {
+      // すべてのインデックスが使用された場合はリセット
+      if (selectedIndicesRef.current.length >= tasksToUse.length) {
+        console.log("すべてのタスクが使用されました。選択履歴をリセットします。");
+        selectedIndicesRef.current = [];
+      }
+      
+      // 未使用のインデックスをランダムに選択
+      let availableIndices = Array.from(
+        { length: tasksToUse.length }, 
+        (_, i) => i
+      ).filter(i => !selectedIndicesRef.current.includes(i));
+      
+      if (availableIndices.length === 0) {
+        console.log("警告: 利用可能なインデックスがありません。全リセット。");
+        selectedIndicesRef.current = [];
+        availableIndices = Array.from({ length: tasksToUse.length }, (_, i) => i);
+      }
+      
+      // ランダムに未使用インデックスを選択
+      const randomPosition = Math.floor(Math.random() * availableIndices.length);
+      newIndex = availableIndices[randomPosition];
+      console.log(`タスク選択: ${availableIndices.length}個の未使用インデックスから${newIndex}を選択`);
+    }
+    
+    // 使用済みインデックスとして記録
+    selectedIndicesRef.current.push(newIndex);
+    lastTaskIndexRef.current = newIndex;
+    
+    console.log(`タスク選択: インデックス=${newIndex}, 総数=${tasksToUse.length}, 使用済=${selectedIndicesRef.current.length}/${tasksToUse.length}`);
+    
+    // 選択されたタスクテンプレートを取得
+    const selectedTask = tasksToUse[newIndex];
+    
+    // 選択したタスクが有効か確認
+    if (!selectedTask) {
+      console.error(`選択したタスク[${newIndex}]が無効です。ランダムなタスクを代わりに使用します。`);
+      
+      // ランダムなインデックスを再生成
+      const fallbackIndex = Math.floor(Math.random() * tasksToUse.length);
+      const fallbackTask = tasksToUse[fallbackIndex];
+      
+      if (!fallbackTask) {
+        console.error("フォールバック用のタスクも無効です。緊急タスクを生成します。");
+        return {
+          id: `task-emergency-${Date.now()}`,
+          title: "Emergency Fallback Task",
+          description: "This is a fallback task created when task selection failed.",
+          category: "System",
+          reward: 10,
+          tags: ["System", "Error", "Fallback"]
+        };
+      }
+      
+      const fallbackTaskObj = {
+        id: `task-fallback-${Date.now()}-${fallbackIndex}`,
+        title: fallbackTask.title,
+        description: fallbackTask.description,
+        category: fallbackTask.category,
+        reward: Math.floor(Math.random() * 30) + 5,
+        tags: fallbackTask.tags
+      };
+      
+      console.log(`フォールバックタスク生成: ${fallbackTaskObj.title}`);
+      return fallbackTaskObj;
+    }
+    
+    const id = `task-${Date.now()}-${newIndex}`;
+    
+    const newTask = {
+      id,
+      title: selectedTask.title,
+      description: selectedTask.description,
+      category: selectedTask.category,
+      reward: Math.floor(Math.random() * 30) + 5, // 5〜35 XP
+      tags: selectedTask.tags
+    };
+    
+    console.log(`新しいタスクを生成: ${newTask.title}（インデックス: ${newIndex}/${tasksToUse.length-1}）`);
+    
+    return newTask;
+  };
+
   // メインコンテナ部分
   return (
     <div className="flex flex-col items-center w-full min-h-screen bg-white">
@@ -2304,106 +2571,168 @@ const TopPage: React.FC<TopPageProps> = ({ userId, onAuth, onNavigate }) => {
               </div>
             </div>
             
-            {/* タスクストリームセクション */}
-            <div className="relative h-[350px] border border-gray-200 rounded-lg overflow-hidden bg-gray-50 mb-8">
-              {/* タスクストリーム */}
-              <div className="h-full w-full overflow-hidden relative">
-                {/* 中央のエージェントアバター */}
-                <div className="absolute left-4 top-4 z-10">
-                  <div className="w-20 h-20 bg-black rounded-full flex items-center justify-center shadow-lg">
-                    <RobotIcon className="text-white h-12 w-12" />
+            {/* タスクストリーム表示エリア - アニメーション改善 */}
+            <div className="relative h-60 bg-slate-50 rounded-xl w-full overflow-hidden border border-gray-200 shadow-inner mb-6">
+              {/* エージェントのアバター - 既存のコード */}
+              <div className="absolute right-4 top-4 z-10">
+                <div className="relative">
+                  <div className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center">
+                    <RobotIcon className="w-6 h-6 text-white" />
                   </div>
-                  {/* レベル表示を削除 */}
                 </div>
-                
-                {/* 現在処理中のタスク */}
-                {currentTask && (
-                  <div
-                    className={`absolute bg-white rounded-lg shadow-md p-3 border ${
-                      currentTask.status === 'matched' ? 'border-green-300' :
-                      currentTask.status === 'rejected' ? 'border-red-300' : 'border-gray-200'
-                    }`}
-                    style={{
-                      width: '250px',
-                      left: '50%',
-                      top: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      animation: 
-                        currentTask.status === 'matched' ? 'slideDown 2s ease-in-out forwards' :
-                        currentTask.status === 'rejected' ? 'slideUp 2s ease-in-out forwards' :
-                        'none'
-                    }}
-                  >
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="font-medium text-sm">{currentTask.title}</div>
-                      <div className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">
-                        +{currentTask.reward} XP
-                      </div>
-                    </div>
-                    
-                    <div className="text-xs text-gray-600 mb-2">
-                      {currentTask.description}
-                    </div>
-                    
-                    {/* タグの表示 */}
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      {currentTask.tags.map((tag, index) => (
-                        <span 
-                          key={index} 
-                          className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                    
-                    {/* マッチング進捗バー */}
-                    {currentTask.status === 'matching' && typeof currentTask.matchProgress === 'number' && (
-                      <div className="w-full mt-2">
-                        <div className="text-xs text-gray-500 mb-1 flex justify-between">
-                          <span>Analyzing match...</span>
-                          <span>{currentTask.matchProgress}%</span>
-                        </div>
-                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-blue-500 transition-all duration-100" 
-                            style={{ width: `${currentTask.matchProgress}%` }} 
-                          />
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* マッチング結果アイコン */}
-                    {currentTask.status === 'matched' && (
-                      <div className="absolute -right-2 -top-2 bg-green-500 text-white rounded-full p-1">
-                        <CheckIcon className="h-4 w-4" />
-                      </div>
-                    )}
-                    
-                    {currentTask.status === 'rejected' && (
-                      <div className="absolute -right-2 -top-2 bg-red-500 text-white rounded-full p-1">
-                        <XIcon className="h-4 w-4" />
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
-              
-              {/* アニメーション用CSS */}
-              <style dangerouslySetInnerHTML={{
-                __html: `
-                  @keyframes slideDown {
-                    0% { transform: translate(-50%, -50%); }
-                    100% { transform: translate(-50%, 250%); }
-                  }
+
+              {/* 現在のタスク評価表示 - アニメーション改善 */}
+              {currentTask && (
+                <div 
+                  className={`absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 p-4 rounded-lg shadow-md border z-5 transition-all duration-300 ease-in-out ${
+                    currentTask.status === 'matched' 
+                      ? 'bg-green-50 border-green-300' 
+                      : currentTask.status === 'rejected'
+                        ? 'bg-red-50 border-red-300'
+                        : 'bg-white border-gray-200'
+                  }`}
+                  style={{
+                    animation: currentTask.status === 'sliding' 
+                      ? `slide${currentTask.slideDirection === 'down' ? 'Down' : 'Up'} 1s ease-in-out forwards`
+                      : "none"
+                  }}
+                >
+                  {/* タスクのヘッダー部分 - 視覚的強化 */}
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      currentTask.status === 'matched' 
+                        ? 'bg-green-100 text-green-800' 
+                        : currentTask.status === 'rejected'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {currentTask.category}
+                    </span>
+                    <span className="text-xs text-gray-500">ID: {currentTask.id.split('-')[1]}</span>
+                  </div>
                   
-                  @keyframes slideUp {
-                    0% { transform: translate(-50%, -50%); }
-                    100% { transform: translate(-50%, -250%); }
-                  }
-                `
-              }} />
+                  {/* タスクの詳細表示部分 */}
+                  <div className="flex justify-between items-center mb-2">
+                    <div className={`font-medium text-sm ${
+                      currentTask.status === 'matched' ? 'text-green-800' : 
+                      currentTask.status === 'rejected' ? 'text-red-800' : 'text-gray-800'
+                    }`}>{currentTask.title}</div>
+                    <div className={`text-xs px-2 py-0.5 rounded-full ${
+                      currentTask.status === 'matched' ? 'bg-green-100 text-green-700' : 
+                      currentTask.status === 'rejected' ? 'bg-red-100 text-red-700' : 
+                      'bg-blue-100 text-blue-700'
+                    }`}>
+                      +{currentTask.reward} XP
+                    </div>
+                  </div>
+                  
+                  <div className={`text-xs mb-2 ${
+                    currentTask.status === 'matched' ? 'text-green-700' : 
+                    currentTask.status === 'rejected' ? 'text-red-700' : 
+                    'text-gray-600'
+                  }`}>
+                    {currentTask.description}
+                  </div>
+                  
+                  {/* タグの表示 */}
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {currentTask.tags.map((tag, index) => (
+                      <span 
+                        key={index} 
+                        className={`text-xs px-2 py-0.5 rounded-full ${
+                          currentTask.status === 'matched' ? 'bg-green-100 text-green-700' : 
+                          currentTask.status === 'rejected' ? 'bg-red-100 text-red-700' : 
+                          'bg-gray-100 text-gray-600'
+                        }`}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                  
+                  {/* マッチング進捗バー - アニメーション改善 */}
+                  {currentTask.status === 'matching' && currentTask.matchProgress !== undefined && (
+                    <div className="mt-2">
+                      <div className="text-xs flex justify-between mb-1">
+                        <span>Matching...</span>
+                        <span>{currentTask.matchProgress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                        <div 
+                          className="bg-blue-500 h-full rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${currentTask.matchProgress}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* マッチング結果表示 - 視覚的強化 */}
+                  {currentTask.status === 'matched' && (
+                    <div className="mt-2 flex flex-col items-center text-green-600 bg-green-100 p-3 rounded-md border border-green-300 shadow-inner transition-all">
+                      <div className="absolute -right-2 -top-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-md">
+                        <CheckIcon className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-bold animate-pulse">Task Matched!</div>
+                        <div className="text-xs text-green-700">This task has been added to your queue</div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {currentTask.status === 'rejected' && (
+                    <div className="mt-2 flex flex-col items-center text-red-600 bg-red-100 p-3 rounded-md border border-red-300 shadow-inner transition-all">
+                      <div className="absolute -right-2 -top-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center shadow-md">
+                        <XIcon className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-bold">Not Relevant</div>
+                        <div className="text-xs text-red-700">This task does not match your profile</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
+            
+            {/* アニメーション用CSS - 滑らかさの向上 */}
+            <style dangerouslySetInnerHTML={{
+              __html: `
+                @keyframes slideDown {
+                  0% { transform: translate(-50%, -50%); opacity: 1; }
+                  100% { transform: translate(-50%, 250%); opacity: 0; }
+                }
+                
+                @keyframes slideUp {
+                  0% { transform: translate(-50%, -50%); opacity: 1; }
+                  100% { transform: translate(-50%, -250%); opacity: 0; }
+                }
+                
+                /* プログレスバーのパルスアニメーション */
+                @keyframes progressPulse {
+                  0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5); }
+                  70% { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0); }
+                  100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+                }
+                
+                /* マッチング中の進捗バーにアニメーション適用 */
+                .bg-blue-500 {
+                  animation: progressPulse 2s infinite;
+                  transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+                }
+                
+                /* マッチング結果のアニメーション */
+                @keyframes resultPop {
+                  0% { transform: scale(0.8); opacity: 0; }
+                  70% { transform: scale(1.05); }
+                  100% { transform: scale(1); opacity: 1; }
+                }
+                
+                .bg-green-50, .bg-red-50, .bg-green-100, .bg-red-100 {
+                  animation: resultPop 0.5s ease-out forwards;
+                }
+              `
+            }} />
             
             {/* Activity Log */}
             <div>
